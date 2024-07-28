@@ -1,0 +1,6 @@
+pyvista
+scipy
+trame
+trame-vtk
+trame-vuetify
+vtk
