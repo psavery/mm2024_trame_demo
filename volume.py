@@ -1,7 +1,7 @@
 import pyvista as pv
 from scipy.ndimage import gaussian_filter
 from trame.app import get_server
-from trame.widgets import vuetify3 as vuetify, vtk as vtk_widgets
+from trame.widgets import html, vuetify3 as vuetify, vtk as vtk_widgets
 from trame.ui.vuetify3 import SinglePageLayout
 from vtk.util import numpy_support as np_s
 import sys
@@ -15,21 +15,31 @@ if len(sys.argv) > 1:
 
 selected_dataset_path = fetch_dataset(dataset)
 
+if dataset == 'star_nanoparticle':
+    opacity = 'sigmoid_5'
+else:
+    opacity = [0, 0.06, 0.3, 0.5, 1]
+
+# Read the file
 input_data = pv.read(selected_dataset_path)
 
+# Set up the VTK volume rendering
 pl = pv.Plotter()
-volume = pl.add_volume(input_data, cmap='plasma', opacity='sigmoid_5')
+volume = pl.add_volume(input_data, cmap='plasma', opacity=opacity)
 data = volume.GetMapper().GetInput()
 vtk_array = data.GetPointData().GetScalars()
 np_data = np_s.vtk_to_numpy(vtk_array).reshape(data.GetDimensions())
 original_data = np_data.copy()
 
+# Turn on offscreen rendering
 render_window = pl.ren_win
 render_window.OffScreenRenderingOn()
 
+# Set linear interpolation
 prop = volume.GetProperty()
 prop.SetInterpolationTypeToLinear()
 
+# Enable jittering
 mapper = volume.GetMapper()
 mapper.UseJitteringOn()
 
@@ -43,26 +53,29 @@ state.trame__title == 'Example Volume Rendering'
 # UI Callbacks
 @state.change('sigma')
 def sigma_changed(sigma, **kwargs):
-    # Reset to original data
-    np_data[:] = original_data
-    # Now apply the gaussian
-    np_data[:] = gaussian_filter(np_data.transpose(2, 1, 0), sigma).transpose(2, 1, 0)
+    # Now apply the gaussian to the original data
+    # Reshape to C ordering, since scipy expects that
+    shape = np_data.shape
+    np_data[:] = gaussian_filter(
+        original_data.reshape(shape[::-1]),
+        sigma,
+    ).reshape(shape)
 
     # Update the view
     data.Modified()
-    render_window.Render()
     ctrl.view_update()
 
 
+# Set up the UI layout
 with SinglePageLayout(server) as layout:
     with layout.toolbar:
+        html.Div("Sigma: {{ sigma }}")
         vuetify.VSpacer()
-        vuetify.VLabel('Sigma')
         vuetify.VSlider(
             v_model=('sigma', 0),
             min=0,
-            max=2,
-            step=0.01,
+            max=10,
+            step=0.05,
             hide_details=True,
             dense=True,
             style='max-width: 300px',
