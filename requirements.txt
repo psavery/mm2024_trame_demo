@@ -1,3 +1,5 @@
+ipywidgets
+notebook
 pyvista
 scipy
 trame

@@ -1,13 +1,52 @@
+#!/usr/bin/env -S uv run --script
+#
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#     "pyvista",
+#     "scipy",
+#     "trame",
+#     "trame-vtk",
+#     "trame-vuetify",
+#     "vtk",
+# ]
+# ///
+
+from pathlib import Path
 import sys
 
 import pyvista as pv
+
 from trame.app import get_server
+from trame.assets.remote import download_file_from_google_drive
 from trame.widgets import html, vuetify3 as vuetify, vtk as vtk_widgets
 from trame.ui.vuetify3 import SinglePageLayout
 
 from vtk import vtkFlyingEdges3D
 
-from data_loader import fetch_dataset
+data_dir = Path(__file__).parent / 'data'
+
+star_nanoparticle_path = data_dir / 'Recon_NanoParticle_doi_10.1021-nl103400a.tiff'  # noqa
+star_nanoparticle_google_drive_id = '1S821zdERFfJ-TlnMeyE0aTdBdV642OL4'
+
+nanotube_path = data_dir / 'reconstructed_tiltser_180_subsampled_10.6084-m9.figshare.c.2185342.v2.tiff'  # noqa
+nanotube_google_drive_id = '1bJi4yYis8yCh2A7yIpAzYjGUrqSV1us2'
+
+
+def fetch_dataset(name: str) -> Path:
+    if name == 'star_nanoparticle':
+        path = star_nanoparticle_path
+        drive_id = star_nanoparticle_google_drive_id
+    else:
+        path = nanotube_path
+        drive_id = nanotube_google_drive_id
+
+    # Make sure the data directory exists
+    data_dir.mkdir(parents=True, exist_ok=True)
+    if not path.exists():
+        print('Downloading dataset from Google Drive...')
+        download_file_from_google_drive(drive_id, path)
+    return path
 
 # Data loading
 dataset = 'star_nanoparticle'
